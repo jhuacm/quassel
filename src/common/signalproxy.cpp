@@ -985,7 +985,7 @@ SignalProxy::ExtendedMetaObject::MethodDescriptor::MethodDescriptor(const QMetaM
     QList<QByteArray> paramTypes = method.parameterTypes();
     QList<int> argTypes;
     for (int i = 0; i < paramTypes.count(); i++) {
-        argTypes.append(QMetaType::type(paramTypes[i]));
+        argTypes.append(QMetaType::type(QString(paramTypes[i]).replace("&","").toUtf8()));
     }
     _argTypes = argTypes;
 
