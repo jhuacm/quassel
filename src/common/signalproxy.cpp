@@ -291,6 +291,7 @@ bool SignalProxy::addPeer(Peer *peer)
     _peers.insert(peer);
 
     peer->setSignalProxy(this);
+    recomputePeerCompatDifferences();
 
     if (_peers.count() == 1)
         emit connected();
@@ -333,6 +334,7 @@ void SignalProxy::removePeer(Peer *peer)
 
     _peers.remove(peer);
     emit peerRemoved(peer);
+    recomputePeerCompatDifferences();
 
     if (peer->parent() == this)
         peer->deleteLater();
@@ -378,6 +380,17 @@ const QMetaObject *SignalProxy::metaObject(const QObject *obj)
         return syncObject->syncMetaObject();
     else
         return obj->metaObject();
+}
+
+void SignalProxy::recomputePeerCompatDifferences()
+{
+    Quassel::Features allSupport = ~Quassel::Features(0);
+    Quassel::Features someSupport = 0;
+    foreach (Peer *p, _peers) {
+        allSupport &= p->features();
+        someSupport |= p->features();
+    }
+    _peerCompatDifferences = allSupport ^ someSupport;
 }
 
 
