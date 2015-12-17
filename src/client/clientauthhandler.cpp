@@ -288,7 +288,7 @@ void ClientAuthHandler::startRegistration()
     useSsl = _account.useSsl();
 #endif
 
-    _peer->dispatch(RegisterClient(Quassel::buildInfo().fancyVersionString, Quassel::buildInfo().buildDate, useSsl));
+    _peer->dispatch(RegisterClient(Quassel::features(), Quassel::buildInfo().fancyVersionString, Quassel::buildInfo().buildDate, useSsl));
 }
 
 
@@ -305,6 +305,7 @@ void ClientAuthHandler::handle(const ClientRegistered &msg)
     _backendInfo = msg.backendInfo;
 
     Client::setCoreFeatures(static_cast<Quassel::Features>(msg.coreFeatures));
+    _peer->setFeatures(static_cast<Quassel::Features>(msg.coreFeatures));
 
     // The legacy protocol enables SSL at this point
     if(_legacy && _account.useSsl())

@@ -30,6 +30,7 @@
 
 #include "signalproxy.h"
 
+#include "objectcompat.h"
 #include "peer.h"
 #include "protocol.h"
 #include "syncableobject.h"
@@ -132,7 +133,8 @@ int SignalProxy::SignalRelay::qt_metacall(QMetaObject::Call _c, int _id, void **
         return _id;
 
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_slots.contains(_id)) {
+        if (!proxy()->_peers.empty() && _slots.contains(_id)) {
+
             QObject *caller = sender();
 
             SignalProxy::ExtendedMetaObject *eMeta = proxy()->extendedMetaObject(caller->metaObject());
@@ -140,9 +142,24 @@ int SignalProxy::SignalRelay::qt_metacall(QMetaObject::Call _c, int _id, void **
 
             const Signal &signal = _slots[_id];
 
-            QVariantList params;
-
             const QList<int> &argTypes = eMeta->argTypes(signal.signalId);
+
+            Peer *remotePeer = 0; // Non-null if we have a specific remove peer to send to
+            QSet<Peer *>::ConstIterator peerIt; // If we don't have a specific peer to send to, the first peer. May later be used to iterate over other peers if needed.
+
+            Quassel::Features peerProtocolVersion;
+
+            if (argTypes.size() >= 1 && argTypes[0] == qMetaTypeId<PeerPtr>() && proxy()->proxyMode() == SignalProxy::Server) {
+                remotePeer = QVariant(qMetaTypeId<PeerPtr>(), _a[1]).value<PeerPtr>();
+                peerProtocolVersion = remotePeer->features();
+            } else {
+                peerIt = proxy()->_peers.begin();
+                peerProtocolVersion = (*peerIt)->features();
+            }
+
+
+            // Compatability: Are our peers at the same level of compatability with each other wrt the message we need to send?
+            bool sameMessage = true;
             for (int i = 0; i < argTypes.size(); i++) {
                 if (argTypes[i] == 0) {
 #if QT_VERSION >= 0x050000
@@ -153,14 +170,33 @@ int SignalProxy::SignalRelay::qt_metacall(QMetaObject::Call _c, int _id, void **
                     qWarning() << "                            - make sure all your data types are known by the Qt MetaSystem";
                     return _id;
                 }
-                params << QVariant(argTypes[i], _a[i+1]);
+                if (!remotePeer && proxy()->peerCompatDifferences() & objectCompat->flagsNeeded(i)) {
+                    sameMessage = false;
+                }
             }
-
-            if (argTypes.size() >= 1 && argTypes[0] == qMetaTypeId<PeerPtr>() && proxy()->proxyMode() == SignalProxy::Server) {
-                Peer *peer = params[0].value<PeerPtr>();
-                proxy()->dispatch(peer, RpcCall(signal.signature, params));
-            } else
-                proxy()->dispatch(RpcCall(signal.signature, params));
+            if (sameMessage) {
+                QVariantList params;
+                for (int i = 0; i < argTypes.size(); i++) {
+                    params << objectCompat->peerCompatibleQVariant(peerProtocolVersion, argTypes[i], _a[i+1]);
+                }
+                if (remotePeer) {
+                    // FIXME: params still includes remotePeer! Are we really sending a pointer value over the network? O_o
+                    proxy()->dispatch(remotePeer, RpcCall(signal.signature, params));
+                } else if (sameMessage) {
+                    // Multiple peers, but they support the same level of compatability for what we're sending them
+                    proxy()->dispatch(RpcCall(signal.signature, params));
+                }
+            } else {
+                do {
+                    // We have multiple peers, and at least two of them differ on what needs to be sent to each of them.
+                    QVariantList params;
+                    peerProtocolVersion = (*peerIt)->features();
+                    for (int i = 0; i < argTypes.size(); i++) {
+                        params << objectCompat->peerCompatibleQVariant(peerProtocolVersion, argTypes[i], _a[i+1]);
+                    }
+                    proxy()->dispatch(*peerIt, RpcCall(signal.signature, params));
+                } while (++peerIt != proxy()->_peers.end());
+            }
         }
         _id -= _slots.count();
     }
@@ -291,6 +327,7 @@ bool SignalProxy::addPeer(Peer *peer)
     _peers.insert(peer);
 
     peer->setSignalProxy(this);
+    recomputePeerCompatDifferences();
 
     if (_peers.count() == 1)
         emit connected();
@@ -333,6 +370,7 @@ void SignalProxy::removePeer(Peer *peer)
 
     _peers.remove(peer);
     emit peerRemoved(peer);
+    recomputePeerCompatDifferences();
 
     if (peer->parent() == this)
         peer->deleteLater();
@@ -378,6 +416,17 @@ const QMetaObject *SignalProxy::metaObject(const QObject *obj)
         return syncObject->syncMetaObject();
     else
         return obj->metaObject();
+}
+
+void SignalProxy::recomputePeerCompatDifferences()
+{
+    Quassel::Features allSupport = ~Quassel::Features(0);
+    Quassel::Features someSupport = 0;
+    foreach (Peer *p, _peers) {
+        allSupport &= p->features();
+        someSupport |= p->features();
+    }
+    _peerCompatDifferences = allSupport ^ someSupport;
 }
 
 
@@ -985,7 +1034,7 @@ SignalProxy::ExtendedMetaObject::MethodDescriptor::MethodDescriptor(const QMetaM
     QList<QByteArray> paramTypes = method.parameterTypes();
     QList<int> argTypes;
     for (int i = 0; i < paramTypes.count(); i++) {
-        argTypes.append(QMetaType::type(paramTypes[i]));
+        argTypes.append(QMetaType::type(QString(paramTypes[i]).replace("&","").toUtf8()));
     }
     _argTypes = argTypes;
 

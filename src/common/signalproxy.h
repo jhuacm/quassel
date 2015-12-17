@@ -25,6 +25,8 @@
 #include <QSet>
 
 #include "protocol.h"
+// FIXME heavy header used only for Quassel::Features; the enums should probably be refactored out
+#include "quassel.h"
 
 struct QMetaObject;
 class QIODevice;
@@ -78,6 +80,8 @@ public:
     void dumpProxyStats();
     void dumpSyncMap(SyncableObject *object);
     inline int peerCount() const { return _peers.size(); }
+
+    Quassel::Features peerCompatDifferences() const { return _peerCompatDifferences; }
 
 public slots:
     void detachObject(QObject *obj);
@@ -139,6 +143,11 @@ private:
 
     static void disconnectDevice(QIODevice *dev, const QString &reason = QString());
 
+    /**
+     * Recompute the set of features that some of our peers have, but others don't
+     */
+    void recomputePeerCompatDifferences();
+
     QSet<Peer *> _peers;
 
     // containg a list of argtypes for fast access
@@ -161,6 +170,8 @@ private:
     int _maxHeartBeatCount;
 
     bool _secure; // determines if all connections are in a secured state (using ssl or internal connections)
+
+    Quassel::Features _peerCompatDifferences;
 
     friend class SignalRelay;
     friend class SyncableObject;
