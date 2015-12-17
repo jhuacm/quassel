@@ -42,6 +42,7 @@
 #include "logger.h"
 #include "message.h"
 #include "network.h"
+#include "objectcompat.h"
 #include "peer.h"
 #include "protocol.h"
 #include "syncableobject.h"
@@ -84,6 +85,7 @@ Quassel::~Quassel()
     delete _cliParser;
 }
 
+ObjectCompat *objectCompat;
 
 bool Quassel::init()
 {
@@ -114,6 +116,7 @@ bool Quassel::init()
     qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
 
     setupEnvironment();
+    objectCompat = new ObjectCompat();
     registerMetaTypes();
 
     Network::setDefaultCodecForServer("ISO-8859-1");
@@ -180,6 +183,17 @@ void Quassel::registerMetaTypes()
      */
 #define REGISTER_TYPE(Type) qRegisterMetaType<Type>(STR(Type));
 #define REGISTER_STREAMS(Type) qRegisterMetaTypeStreamOperators<Type>(STR(Type))
+    /**
+     * Register a type presumed to be available on all peers, with subtypes available
+     * Leaf types do not need to be registed using this function
+     */
+#define REGISTER_VIRTUALTYPE(Type) REGISTER_TYPE(Type) \
+    objectCompat->registerVirtualType<Type>();
+    /**
+     * Register a type that may not be available on all peers; also provides subtypability
+     */
+#define REGISTER_COMPATTYPE(Type, FeatureFlag, FallbackType) REGISTER_TYPE(Type); \
+    ObjectCompat::DowngraderRegistreeFactory<Type, FallbackType>::create<&protocolDowngrade<Type, FallbackType>>::forVersionsWithout(FeatureFlag);
     REGISTER_TYPE(Message);
     REGISTER_TYPE(BufferInfo);
     REGISTER_TYPE(NetworkInfo);
