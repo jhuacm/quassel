@@ -57,11 +57,13 @@ struct HandshakeMessage {
 
 struct RegisterClient : public HandshakeMessage
 {
-    inline RegisterClient(const QString &clientVersion, const QString &buildDate, bool sslSupported = false)
-    : clientVersion(clientVersion)
+    inline RegisterClient(quint32 clientFeatures, const QString &clientVersion, const QString &buildDate, bool sslSupported = false)
+    : clientFeatures(clientFeatures)
+    , clientVersion(clientVersion)
     , buildDate(buildDate)
     , sslSupported(sslSupported) {}
 
+    quint32 clientFeatures;
     QString clientVersion;
     QString buildDate;
 

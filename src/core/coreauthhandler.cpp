@@ -165,6 +165,8 @@ void CoreAuthHandler::handle(const RegisterClient &msg)
         return;
     }
 
+    _peer->setFeatures(static_cast<Quassel::Features>(msg.clientFeatures));
+
     QVariantList backends;
     bool configured = Core::isConfigured();
     if (!configured)

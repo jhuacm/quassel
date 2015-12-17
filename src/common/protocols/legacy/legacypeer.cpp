@@ -151,7 +151,7 @@ void LegacyPeer::handleHandshakeMessage(const QVariant &msg)
             socket()->setProperty("UseCompression", true);
         }
 #endif
-        handle(RegisterClient(m["ClientVersion"].toString(), m["ClientDate"].toString(), m["UseSsl"].toBool()));
+        handle(RegisterClient(m["ClientFeatures"].toUInt(), m["ClientVersion"].toString(), m["ClientDate"].toString(), m["UseSsl"].toBool()));
     }
 
     else if (msgType == "ClientInitReject") {

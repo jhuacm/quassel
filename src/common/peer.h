@@ -28,6 +28,8 @@
 #include "authhandler.h"
 #include "protocol.h"
 #include "signalproxy.h"
+// FIXME heavy header used only for Quassel::Features; the enums should probably be refactored out
+#include "quassel.h"
 
 class Peer : public QObject
 {
@@ -43,6 +45,9 @@ public:
     virtual void setSignalProxy(SignalProxy *proxy) = 0;
 
     AuthHandler *authHandler() const;
+
+    void setFeatures(Quassel::Features features) { _features = features; }
+    Quassel::Features features() const { return _features; }
 
     virtual bool isOpen() const = 0;
     virtual bool isSecure() const = 0;
@@ -81,6 +86,7 @@ protected:
     void handle(const T &protoMessage);
 
 private:
+    Quassel::Features _features;
     QPointer<AuthHandler> _authHandler;
 };
 
