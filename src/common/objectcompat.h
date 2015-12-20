@@ -106,7 +106,7 @@ public:
                     qMetaTypeId<ModelType>(),
                     ObjectCompatEntry(
                         makeInnerVirtualMetaTypeOf<ModelType>,
-                        0,
+                        Quassel::Feature(0),
                         NULL));
     }
 
