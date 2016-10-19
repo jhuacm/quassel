@@ -310,7 +310,7 @@ QString Core::setupCore(const QString &adminUser, const QString &adminPassword, 
         return tr("Could not setup storage!");
     }
 
-    quInfo() << "Selected authenticator: " << authenticator;
+    quInfo() << "Selected authenticator:" << authenticator;
     if (!(_configured = initAuthenticator(authenticator, authSetupData, true)))
     {
         return tr("Could not setup authenticator!");
@@ -363,6 +363,7 @@ bool Core::registerStorageBackend(Storage *backend)
     }
 }
 
+
 void Core::unregisterStorageBackends()
 {
     foreach(Storage *s, _storageBackends.values()) {
@@ -388,29 +389,30 @@ void Core::registerAuthenticators()
 #ifdef HAVE_LDAP
     registerAuthenticator(new LdapAuthenticator(this));
 #endif
-
 }
+
 
 bool Core::registerAuthenticator(Authenticator *authenticator)
 {
-    if (authenticator->isAvailable())
-    {
+    if (authenticator->isAvailable()) {
         _authenticators[authenticator->backendId()] = authenticator;
         return true;
-    } else {
+    }
+    else {
         authenticator->deleteLater();
         return false;
     }
 }
 
+
 void Core::unregisterAuthenticators()
 {
-    foreach(Authenticator* a, _authenticators.values())
-    {
+    foreach(Authenticator* a, _authenticators.values()) {
         a->deleteLater();
     }
     _authenticators.clear();
 }
+
 
 void Core::unregisterAuthenticator(Authenticator *backend)
 {
@@ -496,6 +498,7 @@ bool Core::initAuthenticator(const QString &backend, const QVariantMap &settings
     _authenticator = authenticator;
     return true;
 }
+
 
 void Core::syncStorage()
 {
@@ -776,6 +779,7 @@ QVariantList Core::backendInfo()
     return backends;
 }
 
+
 QVariantList Core::authenticatorInfo()
 {
     QVariantList backends;
@@ -904,9 +908,9 @@ bool Core::selectAuthenticator(const QString &backend)
         saveAuthenticatorSettings(backend, settings);
         qWarning() << "Switched auth backend to:" << qPrintable(backend);
     }
-    
+
     _authenticator = authenticator;
-	return true;
+    return true;
 }
 
 
@@ -960,8 +964,7 @@ bool Core::changeUserPass(const QString &username)
         return false;
     }
 
-    if (!canChangeUserPassword(userId))
-    {
+    if (!canChangeUserPassword(userId)) {
         out << "User " << username << " is configured through an auth provider that has forbidden manual password changing." << endl;
         return false;
     }
@@ -1017,16 +1020,17 @@ bool Core::changeUserPassword(UserId userId, const QString &password)
 bool Core::canChangeUserPassword(UserId userId)
 {
     QString authProvider = instance()->_storage->getUserAuthenticator(userId);
-    if (authProvider != "Database")
-    {
+    if (authProvider != "Database") {
         if (authProvider != instance()->_authenticator->backendId()) {
             return false;
-        } else if (instance()->_authenticator->canChangePassword()) {
+        }
+        else if (instance()->_authenticator->canChangePassword()) {
             return false;
         }
     }
     return true;
 }
+
 
 AbstractSqlMigrationReader *Core::getMigrationReader(Storage *storage)
 {
@@ -1065,6 +1069,7 @@ void Core::saveBackendSettings(const QString &backend, const QVariantMap &settin
     dbsettings["ConnectionProperties"] = settings;
     CoreSettings().setStorageSettings(dbsettings);
 }
+
 
 void Core::saveAuthenticatorSettings(const QString &backend, const QVariantMap &settings)
 {
@@ -1131,8 +1136,8 @@ QVariantMap Core::promptForSettings(const Storage *storage)
     QStringList keys = storage->setupKeys();
     QVariantMap defaults = storage->setupDefaults();
     return Core::promptForSettings(keys, defaults);
-    
 }
+
 
 QVariantMap Core::promptForSettings(const Authenticator *authenticator)
 {
